@@ -19,12 +19,13 @@ from util import dict_to_config
 
 import argparse
 
+import time
 
 class SegmentationTraining(object):
-    def __init__(config):
+    def __init__(self, config):
         self._config = config
 
-    def _get_datasets():
+    def _get_datasets(self):
         base_dataset_dir = self._config.DATASET_PATH
         ims_dir = os.path.join(base_dataset_dir, "imgs")
         labels_dir = os.path.join(base_dataset_dir, "labels")
@@ -38,7 +39,7 @@ class SegmentationTraining(object):
         return train_dataset, test_dataset
 
 
-    def _get_data_loader(train_dataset, test_dataset, batch_size=24, output_size=(256, 256)):
+    def _get_data_loader(self, train_dataset, test_dataset, batch_size=24, output_size=(256, 256)):
         training_augmentation = make_augmentation(output_size=output_size, is_validation=False)
         train_data_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, augmentation_fn=training_augmentation, output_size=output_size, shuffle=True)
 
@@ -47,11 +48,11 @@ class SegmentationTraining(object):
         return train_data_loader, test_data_loader
 
 
-    def _get_model():
+    def _get_model(self):
         OUTPUT_CHANNELS = 1
         model = unet_model(OUTPUT_CHANNELS)
 
-        if weights_path in self._config:
+        if "weights_path" in self._config:
             model.load_weights(self._config.weights_path)
         
         optim = tf.keras.optimizers.Adam(self._config.LR)
@@ -67,12 +68,12 @@ class SegmentationTraining(object):
         model.compile(optim, total_loss, metrics)
         return model
 
-    def _launch_training(model, train_data_loader, test_data_loader):        
+    def _launch_training(self, model, train_data_loader, test_data_loader):        
         project_launch_time = time.strftime("%Y_%m_%d_%H_%M",time.localtime())
 
         checkpoint_file_format = "weights.{epoch:02d}-{val_loss:.2f}.hdf5"
-        checkpoint_path = os.path.join("experiments", project_launch_time, config.exp_name, "checkpoint", checkpoint_file_format)
-        logs_dir = os.path.join("experiments", project_launch_time, config.exp_name, "logs/")
+        checkpoint_path = os.path.join(self._config.OUTPUT_DIR, "experiments", project_launch_time, self._config.EXP_NAME, "checkpoint", checkpoint_file_format)
+        logs_dir = os.path.join(self._config.OUTPUT_DIR, "experiments", project_launch_time, self._config.EXP_NAME, "logs/")
         
         print(f"Checkpoints path:{checkpoint_path}\nLogs path:{logs_dir}")
 
@@ -85,7 +86,7 @@ class SegmentationTraining(object):
         history = model.fit(
             x = train_data_loader, 
             steps_per_epoch=len(train_data_loader), 
-            epochs=config.EPOCHS, 
+            epochs=self._config.EPOCHS, 
             callbacks=callbacks, 
             validation_data=test_data_loader, 
             validation_steps=len(test_data_loader),
@@ -93,9 +94,9 @@ class SegmentationTraining(object):
             workers=1
         ) 
 
-    def train():
+    def train(self):
         train_dataset, test_dataset = self._get_datasets()
-        train_dataloader, test_dataloader = self._get_data_loader(train_dataset, test_dataset, batch_size=BATCH_SIZE)
+        train_dataloader, test_dataloader = self._get_data_loader(train_dataset, test_dataset, batch_size=self._config.BATCH_SIZE)
         model = self._get_model()
         self._launch_training(model, train_dataloader, test_dataloader)
 
